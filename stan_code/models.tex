@@ -1,0 +1,159 @@
+\documentclass[11pt, oneside]{article}
+\usepackage{geometry}
+\geometry{letterpaper}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{fullpage}
+
+%define \mathcal shortcut
+\newcommand{\mc}[1]{\mathcal{#1}}
+
+
+\begin{document}
+\pagestyle{empty}
+
+
+\section*{jk\_basic\_flat\_priors.stan}
+\subsection*{Likelihood} 
+
+\begin{align*}
+{\rm pid}_{jt} &
+	\sim \mc{N}(\mu_{jt}, \sigma^2)  \\
+%	
+\mu_{jt} &= 
+	D_0 + \rho_t {\rm pid}_{j, t-1} + 
+	(1-\rho_t)(\beta_1 + \beta_2 {\rm util}_{jt} + \beta_3 {\rm econ}_t) - 
+	\delta {\rm ErrorCorrection}_{j,t-1} \\
+%	
+ {\rm ErrorCorrection}_{j,t-1} &= 
+ 	{\rm pid}_{j, t-1} - D_0 - \rho_{t-1} {\rm pid}_{j, t-2} - 
+	(1 - \rho_{t-1}) (\beta_1 + \beta_2 {\rm util}_{j,t-1} + \beta_3 {\rm econ}_{t-1}) 
+%	
+\end{align*}
+
+
+\subsection*{Priors} 
+\begin{align*}
+	\beta \in \mathbb{R}^3 &\sim \mc{N}_3(\mathbf{0}, 10\mathbf{I}) \\
+	D_0 \in \mathbb{R} &\propto 1 \\
+	\delta \in \mathbb{R} &\propto 1 \\
+	\sigma \in \mathbb{R}^+ &\propto 1 \\
+	\rho_t \in [0,1] &\propto 1, \quad t = 1, \dots, T \\
+\end{align*}
+
+
+
+
+\section*{jk\_basic\_tighter\_priors.stan}
+\subsection*{Likelihood} 
+
+Same likelihood as above:
+
+\begin{align*}
+{\rm pid}_{jt} &
+	\sim \mc{N}(\mu_{jt}, \sigma^2)  \\
+%	
+\mu_{jt} &= 
+	D_0 + \rho_t {\rm pid}_{j, t-1} + 
+	(1-\rho_t)(\beta_1 + \beta_2 {\rm util}_{jt} + \beta_3 {\rm econ}_t) - 
+	\delta {\rm ErrorCorrection}_{j,t-1} \\
+%	
+ {\rm ErrorCorrection}_{j,t-1} &= 
+ 	{\rm pid}_{j, t-1} - D_0 - \rho_{t-1} {\rm pid}_{j, t-2} - 
+	(1 - \rho_{t-1}) (\beta_1 + \beta_2 {\rm util}_{j,t-1} + \beta_3 {\rm econ}_{t-1}) 
+%	
+\end{align*}
+
+
+
+
+\subsection*{Priors} 
+
+Weakly informative priors
+\begin{align*}
+	\beta \in \mathbb{R}^3 &\sim \mc{N}_3(\mathbf{0}, 5\mathbf{I}) \\
+	D_0 \in \mathbb{R} &\sim \mc{N}(0,1) \\
+	\delta \in \mathbb{R} &\sim \mc{N}(0, 2.5)\\
+	\sigma \in \mathbb{R}^+ &\sim \text{half-Cauchy}(0, 2.5) \\
+	\rho_t \in [0,1] &\propto 1, \quad t = 1, \dots, T \\
+\end{align*}
+
+
+
+
+\section*{jk\_basic\_tighter\_priors\_sigma\_by\_group.stan}
+\subsection*{Likelihood} 
+
+Same likelihood as above except each group $j$ has it's own variance:
+
+\begin{align*}
+{\rm pid}_{jt} &
+	\sim \mc{N}(\mu_{jt}, \sigma^2_j)  \\
+%	
+\mu_{jt} &= 
+	D_0 + \rho_t {\rm pid}_{j, t-1} + 
+	(1-\rho_t)(\beta_1 + \beta_2 {\rm util}_{jt} + \beta_3 {\rm econ}_t) - 
+	\delta {\rm ErrorCorrection}_{j,t-1} \\
+%	
+ {\rm ErrorCorrection}_{j,t-1} &= 
+ 	{\rm pid}_{j, t-1} - D_0 - \rho_{t-1} {\rm pid}_{j, t-2} - 
+	(1 - \rho_{t-1}) (\beta_1 + \beta_2 {\rm util}_{j,t-1} + \beta_3 {\rm econ}_{t-1}) 
+%	
+\end{align*}
+
+
+
+\subsection*{Priors} 
+
+Same weakly informative priors as above except we have a $\sigma_j$ for each group $j$:
+\begin{align*}
+	\beta \in \mathbb{R}^3 &\sim \mc{N}_3(\mathbf{0}, 5\mathbf{I}) \\
+	D_0 \in \mathbb{R} &\sim \mc{N}(0,1) \\
+	\delta \in \mathbb{R} &\sim \mc{N}(0, 2.5)\\
+	\sigma_j \in \mathbb{R}^+ &\sim \text{half-Cauchy}(0, 2.5), \quad j = 1, \dots, J \\
+	\rho_t \in [0,1] &\propto 1, \quad t = 1, \dots, T \\
+\end{align*}
+
+
+
+
+\section*{jk\_rho\_logit\_mvn.stan}
+\subsection*{Likelihood} 
+
+Same likelihood as basic model with common variance 
+
+\begin{align*}
+{\rm pid}_{jt} &
+	\sim \mc{N}(\mu_{jt}, \sigma^2)  \\
+%	
+\mu_{jt} &= 
+	D_0 + \rho_t {\rm pid}_{j, t-1} + 
+	(1-\rho_t)(\beta_1 + \beta_2 {\rm util}_{jt} + \beta_3 {\rm econ}_t) - 
+	\delta {\rm ErrorCorrection}_{j,t-1} \\
+%	
+ {\rm ErrorCorrection}_{j,t-1} &= 
+ 	{\rm pid}_{j, t-1} - D_0 - \rho_{t-1} {\rm pid}_{j, t-2} - 
+	(1 - \rho_{t-1}) (\beta_1 + \beta_2 {\rm util}_{j,t-1} + \beta_3 {\rm econ}_{t-1}) 
+%	
+\end{align*}
+
+
+
+\subsection*{Priors} 
+
+Same weakly informative priors for $\beta$, $D_0$, $\delta$, $\sigma$, but MVN prior for $\rm{logit}(\rho)$. \\
+ 
+\begin{align*}
+	\beta \in \mathbb{R}^3 &\sim \mc{N}_3(\mathbf{0}, 5\mathbf{I}) \\
+	D_0 \in \mathbb{R} &\sim \mc{N}(0,1) \\
+	\delta \in \mathbb{R} &\sim \mc{N}(0, 2.5)\\
+	\sigma \in \mathbb{R}^+ &\sim \text{half-Cauchy}(0, 2.5) \\
+	{\rm logit}(\rho) \in \mathbb{R}^T &\sim \mc{N}_T (\mathbf{0},  \Sigma_\rho  = {\tt diag\_matrix}(\tau) \, \Omega_\rho \, {\tt diag\_matrix}(\tau))\\
+	\tau_t \in \mathbb{R}^+ &~ \sim  \text{half-Cauchy}(0, 2.5), \quad t = 1, \dots, T	 \\
+	\Omega_\rho \in \mathbb{R}^T \times \mathbb{R}^T  &\sim \rm{LKJ}(2) \\
+\end{align*}
+
+
+
+\end{document}
