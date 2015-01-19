@@ -1,5 +1,12 @@
 # basic model with one sigma per group
 
+/* From Ben Goodrich: sort of cross validation: A more general approach might
+be for one observation (at a time) to be considered missing, as opposed to
+left out. Then estimate the missing observation, along with the other
+unknowns, compare the posterior distribution of the missing observation to the
+actual data point, do that for all observations that you have, and average. 
+*/
+
 functions {
   # mean without error correction term
   real mean_wo_correction(real D_0, real rho, vector beta, 
@@ -32,15 +39,8 @@ functions {
     val <- m - delta * V ;
     return val ;
   }
-  
-  # increment deviance
-  real increment_deviance(real dev, real y, real mu, real sigma) {
-    real new_term ;
-    new_term <- (-2.0) * normal_log(y, mu, sigma) ;
-    return dev + new_term ; 
-  }
 
-  vector cauchy_trans_vec2(real loc, real scale, vector noise) {
+    vector cauchy_trans_vec2(real loc, real scale, vector noise) {
     vector[num_elements(noise)] out ;
     for (j in 1:num_elements(out)) {
       out[j] <- loc + scale * tan(pi() * (Phi_approx(noise[j]) - 0.5)) ;
@@ -66,7 +66,10 @@ data {
   matrix[T,J]                   util ; # utility
   matrix[T,J]                   util_L1 ; # utility, 1 lag
   vector[T]                     econ ; # retrospective economic evaluation
-  vector[T]                     econ_L1 ; # E, 1 lag
+  vector[T]                     econ_L1 ; # econ, 1 lag
+
+  int<lower=1,upper=T> t_miss ; # time index for obs considered "missing"
+  int<lower=1,upper=J> j_miss ; # group index for obs considered "missing"
 }
 
 transformed data {
@@ -113,54 +116,43 @@ model {
   
   
   for (j in 1:J) {
-    vector[T] mu ;
-    mu[1] <- mean_wo_correction(D_0, rho[1], beta, party_L1[1,j], util[1,j], econ[1]) ;
-    for(t in 2:T) {
-      mu[t] <- mean_w_correction(delta, D_0, rho[t], rho[t-1], beta,
-                                 party_L1[t,j], party_L2[t,j], 
-                                 util[t,j], util_L1[t,j],
-                                 econ[t], econ_L1[t]) ;
+    for(t in 1:T) {
+      if (j != j_miss && t != t_miss) {
+      real mu ; 
       
+      if (t == 1) 
+        mu <- mean_wo_correction(D_0, rho[t], beta, party_L1[t,j], util[t,j], econ[t]) ;
+      else 
+        mu <- mean_w_correction(delta, D_0, rho[t], rho[t-1], beta,
+                                party_L1[t,j], party_L2[t,j], 
+                                util[t,j], util_L1[t,j],
+                                econ[t], econ_L1[t]) ;
+      
+      increment_log_prob(normal_log(party[t,j], mu, sigma_party[j])) ;    
     }
-    increment_log_prob(normal_log(col(party,j), mu, sigma_party[j])) ;      
+    }
   }
   
 }
 
 generated quantities {
-  real        dev ;           # deviance
-  matrix[T,J] party_rep ;     # simulated values
-  matrix[T,J] resids_rep ;    # residuals: party[t,j] - party_rep[t,j]
-  vector[T*J] log_lik ;
+   real party_miss_pred ; # prediction for "missing obs"
 
-  dev <- 0.0 ; 
+  { # local
+  real mu_miss ;  
+  if (t_miss == 1) 
+    mu_miss <- mean_wo_correction(D_0, rho[t_miss], beta, 
+                                  party_L1[t_miss,j_miss], 
+                                  util[t_miss,j_miss], 
+                                  econ[t_miss]) ;
+  else 
+    mu_miss <- mean_w_correction(delta, D_0, rho[t_miss], rho[t_miss-1], beta,
+                                 party_L1[t_miss,j_miss], party_L2[t_miss,j_miss], 
+                                 util[t_miss,j_miss], util_L1[t_miss,j_miss],
+                                 econ[t_miss], econ_L1[t_miss]) ;
 
-{ # local
-  matrix[T,J] log_lik_mat ;
-
-  for (j in 1:J) {
-    for(t in 1:T) {
-      real mu_post ;
-      
-      if (t == 1) 
-        mu_post <- mean_wo_correction(D_0, rho[t], beta, party_L1[t,j], util[t,j], econ[t]) ;
-      
-      else 
-        mu_post <- mean_w_correction(delta, D_0, rho[t], rho[t-1], beta,
-                                     party_L1[t,j], party_L2[t,j], 
-                                     util[t,j], util_L1[t,j],
-                                     econ[t], econ_L1[t]) ;
-      
-      dev <- increment_deviance(dev, party[t,j], mu_post, sigma_party[j]) ;
-      party_rep[t,j]    <- normal_rng(mu_post, sigma_party[j]) ; 
-      log_lik_mat[t,j] <- normal_log(party[t,j], mu_post, sigma_party[j]) ;
-    }
-  }
-  
-  log_lik <- to_vector(log_lik_mat) ;
-} #end local
-
-  resids_rep <- party - party_rep ;
+  party_miss_pred <- normal_rng(mu_miss, sigma_party[j_miss]) ;
+  } # end local
 }
 
 
